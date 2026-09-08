@@ -4,50 +4,39 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { ScaleApplicator } from "../utils/ScaleApplicator";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface HeatPt {
-  position: number[];
-  normal?: number[];
-  score?: number;
-  riskTier?: string;
-}
-
-interface HeatObj {
-  objectId: string;
-  objectName: string;
-  boundingBox?: any;
-  collisions?: HeatPt[];
-  collisionPositions?: number[][];
-  maxInjuryScore: number;
-  heatColor: number[];
-  intensity: number;
+export interface MeasurementMetrics {
+  geodesicLength: number; // mm
+  maxWidth: number;       // mm
+  maxDepth: number;       // mm
+  meanDepth: number;      // mm
+  cavityVolume: number;   // mm3
 }
 
 interface Props {
   modelPath?: string;
   sceneData?: any;
   sceneUnitScale?: number;
-  simulationPlayback?: any;
-  heatmapData?: HeatObj[] | null;
-  showHeatmap?: boolean;
-  liveAgentPositions?: any;
-  selectedAgentId?: number | null;
-  onPlaybackUpdate?: (info: { progress: number; action: string; time: number }) => void;
-  playbackPaused?: boolean;
-  playbackSeek?: number | null;
-  enableFloorSnap?: boolean;
-  showBoundingBoxes?: boolean;
-  isBabyView?: boolean;
-  onPointSelect?: (point: { x: number; y: number; z: number; objectName?: string }) => void;
+  activeTool?: 'select' | 'ruler' | 'depth' | 'slicer' | 'curvature' | 'calibrate';
+  metrics?: MeasurementMetrics;
+  showSlicerPlane?: boolean;
+  showDepthColormap?: boolean;
+  onPointSelect?: (point: { x: number; y: number; z: number; normal?: number[] }) => void;
 }
 
 export const Canvas3D: React.FC<Props> = ({
   modelPath,
-  sceneData,
+  sceneData: _sceneData,
   sceneUnitScale = 1.0,
-  heatmapData,
-  showHeatmap = false,
-  showBoundingBoxes = false,
+  activeTool: _activeTool = 'ruler',
+  metrics = {
+    geodesicLength: 42.5,
+    maxWidth: 18.2,
+    maxDepth: 9.4,
+    meanDepth: 5.8,
+    cavityVolume: 1840,
+  },
+  showSlicerPlane = true,
+  showDepthColormap = true,
   onPointSelect,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -56,10 +45,9 @@ export const Canvas3D: React.FC<Props> = ({
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const modelGroupRef = useRef<THREE.Group | null>(null);
-  const heatmapGroupRef = useRef<THREE.Group | null>(null);
-  const bboxGroupRef = useRef<THREE.Group | null>(null);
+  const annotationGroupRef = useRef<THREE.Group | null>(null);
 
-  // Initialize Scene, Camera, Renderer, Controls
+  // Initialize Three.js Scene
   useEffect(() => {
     const container = mountRef.current;
     if (!container) return;
@@ -67,71 +55,64 @@ export const Canvas3D: React.FC<Props> = ({
     const width = container.clientWidth || 800;
     const height = container.clientHeight || 600;
 
-    // Scene with dark forensic backdrop
+    // 1. Scene with neutral dark charcoal gray background (Medical Chromatic Neutrality: #18181B)
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#080D1A");
+    scene.background = new THREE.Color("#18181B");
     sceneRef.current = scene;
 
-    // Camera
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.05, 1000);
-    camera.position.set(0, 3, 6);
+    // 2. Camera with precise millimeter near/far clipping
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.01, 500);
+    camera.position.set(0, 2.5, 4.0);
     cameraRef.current = camera;
 
-    // Renderer with antialiasing
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    // 3. High-precision WebGL Renderer
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.1;
+    renderer.toneMappingExposure = 1.0;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Orbit Controls
+    // 4. OrbitControls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.maxPolarAngle = Math.PI / 2 + 0.05;
+    controls.dampingFactor = 0.06;
+    controls.maxDistance = 80;
+    controls.minDistance = 0.2;
     controlsRef.current = controls;
 
-    // Lighting (Medical / Scientific precision)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-    scene.add(ambientLight);
+    // 5. Lighting (Medical High-CRI Pure White Lighting, No Color Casts)
+    const ambient = new THREE.AmbientLight(0xffffff, 1.0);
+    scene.add(ambient);
 
-    const hemiLight = new THREE.HemisphereLight(0xe0f2fe, 0x0f172a, 0.6);
-    scene.add(hemiLight);
+    const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    mainLight.position.set(6, 12, 8);
+    mainLight.castShadow = true;
+    mainLight.shadow.mapSize.width = 2048;
+    mainLight.shadow.mapSize.height = 2048;
+    scene.add(mainLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    dirLight.position.set(5, 12, 7);
-    dirLight.castShadow = true;
-    dirLight.shadow.mapSize.width = 2048;
-    dirLight.shadow.mapSize.height = 2048;
-    scene.add(dirLight);
-
-    // Subtle fill light
-    const fillLight = new THREE.DirectionalLight(0x38bdf8, 0.4);
-    fillLight.position.set(-6, 4, -5);
+    const fillLight = new THREE.DirectionalLight(0xf1f5f9, 0.6);
+    fillLight.position.set(-6, 6, -6);
     scene.add(fillLight);
 
-    // Ground Grid
-    const gridHelper = new THREE.GridHelper(20, 40, 0x3b82f6, 0x1e293b);
-    gridHelper.position.y = -0.01;
+    // 6. Metric Grid (Subtle millimeter coordinate system)
+    const gridHelper = new THREE.GridHelper(10, 50, 0x52525b, 0x27272a);
+    gridHelper.position.y = -0.001;
     scene.add(gridHelper);
 
-    // Groups for modular rendering
+    // 7. Groups
     const modelGroup = new THREE.Group();
-    const heatmapGroup = new THREE.Group();
-    const bboxGroup = new THREE.Group();
+    const annotationGroup = new THREE.Group();
     scene.add(modelGroup);
-    scene.add(heatmapGroup);
-    scene.add(bboxGroup);
-
+    scene.add(annotationGroup);
     modelGroupRef.current = modelGroup;
-    heatmapGroupRef.current = heatmapGroup;
-    bboxGroupRef.current = bboxGroup;
+    annotationGroupRef.current = annotationGroup;
 
-    // Raycaster for surface picking
+    // 8. Raycasting on user click
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
@@ -145,11 +126,12 @@ export const Canvas3D: React.FC<Props> = ({
       const intersects = raycaster.intersectObjects(modelGroup.children, true);
       if (intersects.length > 0) {
         const hit = intersects[0];
+        const normalArr = hit.normal ? [hit.normal.x, hit.normal.y, hit.normal.z] : [0, 1, 0];
         onPointSelect({
           x: hit.point.x,
           y: hit.point.y,
           z: hit.point.z,
-          objectName: hit.object.name || hit.object.parent?.name || "Surface",
+          normal: normalArr,
         });
       }
     };
@@ -157,15 +139,14 @@ export const Canvas3D: React.FC<Props> = ({
     renderer.domElement.addEventListener("click", handleClick);
 
     // Animation Loop
-    let animationId: number;
+    let animId: number;
     const animate = () => {
-      animationId = requestAnimationFrame(animate);
+      animId = requestAnimationFrame(animate);
       controls.update();
       renderer.render(scene, camera);
     };
     animate();
 
-    // Resize Handler
     const handleResize = () => {
       if (!container || !renderer || !camera) return;
       const w = container.clientWidth;
@@ -177,7 +158,7 @@ export const Canvas3D: React.FC<Props> = ({
     window.addEventListener("resize", handleResize);
 
     return () => {
-      cancelAnimationFrame(animationId);
+      cancelAnimationFrame(animId);
       window.removeEventListener("resize", handleResize);
       renderer.domElement.removeEventListener("click", handleClick);
       renderer.dispose();
@@ -187,142 +168,244 @@ export const Canvas3D: React.FC<Props> = ({
     };
   }, []);
 
-  // Load 3D Model
+  // Load Model or Procedural Realistic Wound Tissue Surface
   useEffect(() => {
-    if (!modelPath || !modelGroupRef.current) return;
+    if (!modelGroupRef.current) return;
     const modelGroup = modelGroupRef.current;
+    while (modelGroup.children.length > 0) modelGroup.remove(modelGroup.children[0]);
 
-    // Clear old model
-    while (modelGroup.children.length > 0) {
-      const child = modelGroup.children[0];
-      modelGroup.remove(child);
-    }
+    if (modelPath) {
+      const loader = new GLTFLoader();
+      loader.load(
+        modelPath,
+        (gltf) => {
+          const model = gltf.scene;
+          ScaleApplicator.applyMetadataScale(model, modelPath, sceneUnitScale);
 
-    const loader = new GLTFLoader();
-    loader.load(
-      modelPath,
-      (gltf) => {
-        const model = gltf.scene;
+          model.traverse((child) => {
+            if ((child as THREE.Mesh).isMesh) {
+              const m = child as THREE.Mesh;
+              m.castShadow = true;
+              m.receiveShadow = true;
+            }
+          });
 
-        // Apply scale normalization from metadata
-        ScaleApplicator.applyMetadataScale(model, modelPath, sceneUnitScale);
+          const box = new THREE.Box3().setFromObject(model);
+          const center = box.getCenter(new THREE.Vector3());
+          model.position.x -= center.x;
+          model.position.z -= center.z;
+          modelGroup.add(model);
+        },
+        undefined,
+        (err) => console.error("Error loading model:", err)
+      );
+    } else {
+      // Procedural Anatomical Skin Tissue with Incised Wound
+      const width = 2.0;
+      const depth = 1.4;
+      const geom = new THREE.PlaneGeometry(width, depth, 128, 128);
+      geom.rotateX(-Math.PI / 2);
 
-        // Enable shadows and enhance materials
-        model.traverse((child) => {
-          if ((child as THREE.Mesh).isMesh) {
-            const m = child as THREE.Mesh;
-            m.castShadow = true;
-            m.receiveShadow = true;
+      const posAttr = geom.attributes.position;
+      const colors = new Float32Array(posAttr.count * 3);
+
+      for (let i = 0; i < posAttr.count; i++) {
+        const x = posAttr.getX(i);
+        const z = posAttr.getZ(i);
+
+        // Wound shape: Elliptical incised cavity along X axis (-0.45 to +0.45m)
+        const dx = x / 0.45;
+        const dz = z / 0.18;
+        const distSq = dx * dx + dz * dz;
+
+        let y = 0.0;
+        let r = 0.85, g = 0.65, b = 0.55; // Natural human dermis baseline
+
+        if (distSq < 1.0) {
+          // Cavity depth depression (depth = -0.12m equivalent to 12mm normalized)
+          const profile = Math.pow(Math.cos((distSq * Math.PI) / 2), 1.5);
+          y = -0.12 * profile;
+
+          // Depth colormap: Red/crimson wound bed fading to bruised margin
+          if (showDepthColormap) {
+            const depthRatio = Math.abs(y) / 0.12;
+            r = 0.55 + depthRatio * 0.4;
+            g = 0.15 - depthRatio * 0.1;
+            b = 0.15 - depthRatio * 0.1;
           }
-        });
-
-        // Center scene bounding box
-        const box = new THREE.Box3().setFromObject(model);
-        const center = box.getCenter(new THREE.Vector3());
-        model.position.x -= center.x;
-        model.position.z -= center.z;
-
-        modelGroup.add(model);
-
-        // Adjust camera to frame model
-        const size = box.getSize(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z);
-        if (cameraRef.current && controlsRef.current) {
-          cameraRef.current.position.set(maxDim * 1.2, maxDim * 1.0, maxDim * 1.5);
-          controlsRef.current.target.set(0, size.y / 3, 0);
-          controlsRef.current.update();
         }
-      },
-      undefined,
-      (error) => {
-        console.error("Error loading 3D model:", error);
+
+        posAttr.setY(i, y);
+        colors[i * 3] = r;
+        colors[i * 3 + 1] = g;
+        colors[i * 3 + 2] = b;
       }
-    );
-  }, [modelPath, sceneUnitScale]);
 
-  // Render Bounding Boxes
-  useEffect(() => {
-    if (!bboxGroupRef.current) return;
-    const group = bboxGroupRef.current;
-    while (group.children.length > 0) group.remove(group.children[0]);
+      geom.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+      geom.computeVertexNormals();
 
-    if (!showBoundingBoxes || !sceneData?.objects) return;
-
-    sceneData.objects.forEach((obj: any) => {
-      if (!obj.boundingBox) return;
-      const { min, max } = obj.boundingBox;
-      const size = new THREE.Vector3(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
-      const center = new THREE.Vector3(
-        (min[0] + max[0]) / 2,
-        (min[1] + max[1]) / 2,
-        (min[2] + max[2]) / 2
-      );
-
-      const geom = new THREE.BoxGeometry(size.x, size.y, size.z);
-      const edges = new THREE.EdgesGeometry(geom);
-      const line = new THREE.LineSegments(
-        edges,
-        new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.6 })
-      );
-      line.position.copy(center);
-      group.add(line);
-    });
-  }, [showBoundingBoxes, sceneData]);
-
-  // Render Forensic Heatmap & Injury Point Markers
-  useEffect(() => {
-    if (!heatmapGroupRef.current) return;
-    const group = heatmapGroupRef.current;
-    while (group.children.length > 0) group.remove(group.children[0]);
-
-    if (!showHeatmap || !heatmapData) return;
-
-    heatmapData.forEach((obj) => {
-      const positions = obj.collisionPositions || [];
-      const colorArr = obj.heatColor || [1, 0, 0];
-      const color = new THREE.Color(colorArr[0], colorArr[1], colorArr[2]);
-
-      positions.forEach((pos) => {
-        if (!Array.isArray(pos) || pos.length < 3) return;
-
-        // Marker sphere for impact / hazard point
-        const geom = new THREE.SphereGeometry(0.08, 16, 16);
-        const mat = new THREE.MeshStandardMaterial({
-          color: color,
-          emissive: color,
-          emissiveIntensity: 0.4,
-          roughness: 0.3,
-        });
-        const sphere = new THREE.Mesh(geom, mat);
-        sphere.position.set(pos[0], pos[1], pos[2]);
-        group.add(sphere);
-
-        // Ground target ring
-        const ringGeom = new THREE.RingGeometry(0.1, 0.15, 24);
-        ringGeom.rotateX(-Math.PI / 2);
-        const ringMat = new THREE.MeshBasicMaterial({
-          color: color,
-          side: THREE.DoubleSide,
-          transparent: true,
-          opacity: 0.7,
-        });
-        const ring = new THREE.Mesh(ringGeom, ringMat);
-        ring.position.set(pos[0], 0.02, pos[2]);
-        group.add(ring);
+      const mat = new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        roughness: 0.55,
+        metalness: 0.05,
       });
-    });
-  }, [showHeatmap, heatmapData]);
+
+      const skinMesh = new THREE.Mesh(geom, mat);
+      skinMesh.receiveShadow = true;
+      skinMesh.castShadow = true;
+      modelGroup.add(skinMesh);
+    }
+  }, [modelPath, sceneUnitScale, showDepthColormap]);
+
+  // Render Measurement Calipers, Slicer Plane & 3D Annotations
+  useEffect(() => {
+    if (!annotationGroupRef.current) return;
+    const group = annotationGroupRef.current;
+    while (group.children.length > 0) group.remove(group.children[0]);
+
+    // 1. Geodesic Length Caliper (Along wound major axis)
+    const lenHalf = (metrics.geodesicLength / 100) / 2; // scaled visual unit
+    const p1 = new THREE.Vector3(-lenHalf, 0.005, 0);
+    const p2 = new THREE.Vector3(lenHalf, 0.005, 0);
+
+    const lengthLineGeom = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(p1.x, 0.01, -0.28),
+      new THREE.Vector3(p1.x, 0.01, 0.05),
+      new THREE.Vector3(p1.x, 0.01, -0.28),
+      new THREE.Vector3(p2.x, 0.01, -0.28),
+      new THREE.Vector3(p2.x, 0.01, -0.28),
+      new THREE.Vector3(p2.x, 0.01, 0.05),
+    ]);
+    const lengthLine = new THREE.LineSegments(
+      lengthLineGeom,
+      new THREE.LineBasicMaterial({ color: 0xfacc15, linewidth: 2 })
+    );
+    group.add(lengthLine);
+
+    // 2. Width Caliper (Minor axis)
+    const wHalf = (metrics.maxWidth / 100) / 2;
+    const widthLineGeom = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-0.55, 0.01, -wHalf),
+      new THREE.Vector3(-0.45, 0.01, -wHalf),
+      new THREE.Vector3(-0.55, 0.01, -wHalf),
+      new THREE.Vector3(-0.55, 0.01, wHalf),
+      new THREE.Vector3(-0.55, 0.01, wHalf),
+      new THREE.Vector3(-0.45, 0.01, wHalf),
+    ]);
+    const widthLine = new THREE.LineSegments(
+      widthLineGeom,
+      new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 })
+    );
+    group.add(widthLine);
+
+    // 3. Depth Vertical Caliper Arrow
+    const depthVal = -(metrics.maxDepth / 100);
+    const depthLineGeom = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0.55, 0.01, 0),
+      new THREE.Vector3(0.55, depthVal, 0),
+      new THREE.Vector3(0.48, 0.01, 0),
+      new THREE.Vector3(0.58, 0.01, 0),
+      new THREE.Vector3(0.48, depthVal, 0),
+      new THREE.Vector3(0.58, depthVal, 0),
+    ]);
+    const depthLine = new THREE.LineSegments(
+      depthLineGeom,
+      new THREE.LineBasicMaterial({ color: 0xfacc15, linewidth: 2 })
+    );
+    group.add(depthLine);
+
+    // 4. Landmark Pin Markers on Wound Ends
+    const pinGeom = new THREE.SphereGeometry(0.016, 16, 16);
+    const pinMatGold = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
+    const pinMatCyan = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+
+    const pin1 = new THREE.Mesh(pinGeom, pinMatGold);
+    pin1.position.set(-lenHalf, 0.01, 0);
+    group.add(pin1);
+
+    const pin2 = new THREE.Mesh(pinGeom, pinMatGold);
+    pin2.position.set(lenHalf, 0.01, 0);
+    group.add(pin2);
+
+    const pin3 = new THREE.Mesh(pinGeom, pinMatCyan);
+    pin3.position.set(0, 0.01, -wHalf);
+    group.add(pin3);
+
+    const pin4 = new THREE.Mesh(pinGeom, pinMatCyan);
+    pin4.position.set(0, 0.01, wHalf);
+    group.add(pin4);
+
+    // 5. Translucent 2D Cross-Section Slicing Plane
+    if (showSlicerPlane) {
+      const planeGeom = new THREE.PlaneGeometry(0.9, 0.35);
+      planeGeom.rotateY(Math.PI / 2);
+      const planeMat = new THREE.MeshBasicMaterial({
+        color: 0x94a3b8,
+        transparent: true,
+        opacity: 0.25,
+        side: THREE.DoubleSide,
+      });
+      const slicePlane = new THREE.Mesh(planeGeom, planeMat);
+      slicePlane.position.set(0, -0.05, 0);
+      group.add(slicePlane);
+
+      // Yellow slice curve indicator line
+      const sliceCurveGeom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0.005, -wHalf),
+        new THREE.Vector3(0, depthVal, 0),
+        new THREE.Vector3(0, 0.005, wHalf),
+      ]);
+      const sliceCurve = new THREE.Line(sliceCurveGeom, new THREE.LineBasicMaterial({ color: 0xfacc15, linewidth: 3 }));
+      group.add(sliceCurve);
+    }
+  }, [metrics, showSlicerPlane]);
 
   return (
-    <div
-      ref={mountRef}
-      style={{
-        width: "100%",
-        height: "100%",
-        position: "relative",
-        overflow: "hidden",
-      }}
-    />
+    <div className="relative w-full h-full overflow-hidden select-none">
+      {/* 3D WebGL Canvas Container */}
+      <div ref={mountRef} className="w-full h-full" />
+
+      {/* Floating Measurement Tags on Viewport */}
+      <div className="absolute top-16 left-1/2 -translate-x-1/2 pointer-events-none flex items-center gap-6 z-10">
+        <div className="bg-black/80 backdrop-blur-md border border-yellow-400/80 px-3 py-1 rounded text-yellow-300 text-xs font-mono font-bold shadow-lg">
+          Geodesic Length: {metrics.geodesicLength.toFixed(1)} mm
+        </div>
+      </div>
+
+      <div className="absolute bottom-24 left-16 pointer-events-none z-10">
+        <div className="bg-black/80 backdrop-blur-md border border-white/70 px-3 py-1 rounded text-white text-xs font-mono font-bold shadow-lg">
+          Width: {metrics.maxWidth.toFixed(1)} mm
+        </div>
+      </div>
+
+      <div className="absolute bottom-24 right-24 pointer-events-none z-10">
+        <div className="bg-black/80 backdrop-blur-md border border-yellow-400/80 px-3 py-1 rounded text-yellow-300 text-xs font-mono font-bold shadow-lg">
+          Max Depth: {metrics.maxDepth.toFixed(1)} mm
+        </div>
+      </div>
+
+      {/* Right Medical Vertical Colorbar Scale */}
+      <div className="absolute top-16 right-4 pointer-events-none flex flex-col items-center gap-1 z-10 bg-black/60 backdrop-blur-md p-2 rounded border border-zinc-700">
+        <span className="text-[10px] text-zinc-300 font-mono">0 mm</span>
+        <div
+          className="w-3 h-32 rounded-sm"
+          style={{
+            background: "linear-gradient(to bottom, #22c55e 0%, #eab308 30%, #ef4444 70%, #7e22ce 100%)",
+          }}
+        />
+        <span className="text-[10px] text-zinc-300 font-mono">-5 mm</span>
+        <span className="text-[10px] text-zinc-400 font-mono text-center">-10 mm</span>
+        <span className="text-[10px] text-zinc-400 font-mono">-15 mm</span>
+      </div>
+
+      {/* Top-Right 3D ViewCube Gizmo */}
+      <div className="absolute top-3 right-24 pointer-events-none flex items-center justify-center w-12 h-12 rounded border border-zinc-700 bg-zinc-900/90 text-[11px] font-bold text-zinc-300 shadow-md">
+        <div className="text-center leading-tight">
+          TOP<br />
+          <span className="text-[9px] text-cyan-400 font-mono">Z-UP</span>
+        </div>
+      </div>
+    </div>
   );
 };
 
