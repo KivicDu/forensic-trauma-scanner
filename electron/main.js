@@ -12,11 +12,15 @@ let backendProcess = null;
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
 function startBackend() {
+  if (isDev) {
+    console.log('ℹ️ [Electron] Development mode: backend is managed by dev script.');
+    return;
+  }
   const serverPath = path.join(__dirname, '../Backend/server.js');
   console.log(`🚀 [Electron] Starting local offline Express backend from: ${serverPath}`);
 
   backendProcess = fork(serverPath, [], {
-    env: { ...process.env, PORT: '3000', NODE_ENV: isDev ? 'development' : 'production' },
+    env: { ...process.env, PORT: '3000', NODE_ENV: 'production' },
     silent: false,
   });
 
@@ -35,14 +39,14 @@ function createWindow() {
     height: 850,
     minWidth: 1024,
     minHeight: 720,
-    title: 'Child Forensic Trauma Scanner (PFT-Sim)',
+    title: 'Forensic Trauma Scanner - 3D Morphometry & Scene Reconstruction',
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
     },
-    backgroundColor: '#0A0F1D',
+    backgroundColor: '#18181B',
   });
 
   if (isDev) {
