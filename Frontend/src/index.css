@@ -1,193 +1,103 @@
-@import url("https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════════
-   FAIRYTALE STORYBOOK DESIGN SYSTEM
-   90s/00s Disney — Deep Royal Night palette
+   CLINICAL LIGHT FORENSIC WORKSTATION DESIGN SYSTEM
+   Standard Medical Imaging & Anti-Fatigue Ergonomic Palette
    ═══════════════════════════════════════════════════════════ */
 :root {
-  /* ── Core Palette ─────────────────────────────────────── */
-  --royal-night: #0A0F1D;
-  --royal-night-alpha: rgba(10, 15, 30, 0.7);
-  --royal-night-deep: #060B16;
-  --stardust-gold: #FFE4A0;
-  --deep-gold: #D4AF37;
-  --ice-white: #FDFDFD;
-  --parchment: #f5e6c8;
-  --guardian-mint: #78dcd2;
-  --danger-red: #ff2200;
-  --muted-silver: #A0B0C0;
-  --void-black: #050818;
+  /* ── Core Clinical Palette ────────────────────────────── */
+  --clinical-bg: #F8FAFC;
+  --clinical-surface: #FFFFFF;
+  --clinical-surface-subtle: #F1F5F9;
+  --clinical-border: #E2E8F0;
+  --clinical-border-strong: #CBD5E1;
+  --clinical-viewport: #EEF2F6;
 
-  /* ── Typography ───────────────────────────────────────── */
-  --font-display: 'Cinzel Decorative', 'Georgia', serif;
-  --font-body: 'Cormorant Garamond', 'Georgia', serif;
-  --font-system: 'Inter', sans-serif;
+  /* ── Typography & Contrast ────────────────────────────── */
+  --clinical-text-primary: #0F172A;
+  --clinical-text-secondary: #334155;
+  --clinical-text-muted: #64748B;
+  --clinical-text-faint: #94A3B8;
+
+  /* ── Medical Accents (Calm, High-Confidence) ───────────── */
+  --clinical-blue: #0284C7;
+  --clinical-blue-hover: #0369A1;
+  --clinical-blue-subtle: #F0F9FF;
+  --clinical-blue-border: #BAE6FD;
+
+  --clinical-teal: #0D9488;
+  --clinical-teal-subtle: #F0FDFA;
+  --clinical-teal-border: #99F6E4;
+
+  --clinical-emerald: #059669;
+  --clinical-amber: #D97706;
 
   /* ── Shadows ──────────────────────────────────────────── */
-  --shadow-gold: 0 0 15px rgba(255, 228, 160, 0.3);
-  --shadow-gold-strong: 0 0 25px rgba(212, 175, 55, 0.5);
-  --shadow-deep: 0 8px 32px rgba(0, 0, 0, 0.4);
-  --shadow-inner-gold: inset 0 0 20px rgba(212, 175, 55, 0.05);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
 
-  /* ── Borders ──────────────────────────────────────────── */
-  --border-gold: 1px solid rgba(212, 175, 55, 0.4);
-  --border-gold-subtle: 1px solid rgba(255, 228, 160, 0.15);
-  --border-gold-strong: 1px solid rgba(255, 228, 160, 0.5);
+  /* ── Typography Families ──────────────────────────────── */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 /* ─── Base ─────────────────────────────────────────────── */
 body {
-  font-family: var(--font-body);
-  background-color: var(--royal-night);
-  color: var(--ice-white);
+  font-family: var(--font-sans);
+  background-color: var(--clinical-bg);
+  color: var(--clinical-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-/* ═══════════════════════════════════════════════════════════
-   FAIRYTALE ANIMATIONS
-   ═══════════════════════════════════════════════════════════ */
-@keyframes stardust-pulse {
-  0%, 100% { opacity: 0.3; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.05); }
-}
-
-@keyframes royal-shimmer {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
-
-@keyframes gentle-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
-}
-
-@keyframes scan-line {
-  0% { top: -2px; }
-  100% { top: 100%; }
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 0.75; }
-}
-
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 8px rgba(255, 228, 160, 0.2); }
-  50% { box-shadow: 0 0 20px rgba(255, 228, 160, 0.5); }
-}
-
-@keyframes shimmer {
-  0% { transform: translateX(-100%) skewX(-12deg); }
-  100% { transform: translateX(200%) skewX(-12deg); }
-}
-
-/* ═══════════════════════════════════════════════════════════
-   FAIRYTALE COMPONENT CLASSES
-   ═══════════════════════════════════════════════════════════ */
-
-/* ── Storybook Panel (replaces glass-panel) ───────────── */
-.storybook-panel {
-  background: rgba(10, 15, 30, 0.6);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: var(--border-gold);
-  box-shadow: var(--shadow-deep);
-  border-radius: 16px;
-}
-
-/* ── Gold Gradient Text ───────────────────────────────── */
-.gold-gradient-text {
-  background: linear-gradient(135deg, var(--stardust-gold), var(--deep-gold));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* ── Gold Border Glow ─────────────────────────────────── */
-.gold-border-glow {
-  border: var(--border-gold);
-  box-shadow: 0 0 20px rgba(212, 175, 55, 0.1);
-  transition: border-color 0.4s ease, box-shadow 0.4s ease;
-}
-.gold-border-glow:hover {
-  border-color: rgba(255, 228, 160, 0.6);
-  box-shadow: var(--shadow-gold);
-}
-
-/* ── Shimmer Button ───────────────────────────────────── */
-.shimmer-btn {
-  position: relative;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.shimmer-btn::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
-  transition: left 0.6s ease;
-}
-.shimmer-btn:hover::after {
-  left: 100%;
 }
 
-/* ─── 3D Perspective Container ────────────────────────── */
-.perspective-container {
-  perspective: 1200px;
-  transform-style: preserve-3d;
-}
-
-/* ═══════════════════════════════════════════════════════════
-   SCROLLBAR — Fairytale Gold
-   ═══════════════════════════════════════════════════════════ */
+/* ─── Medical Scrollbar ────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--clinical-surface-subtle);
 }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(
-    180deg,
-    rgba(212, 175, 55, 0.25),
-    rgba(255, 228, 160, 0.25)
-  );
-  border-radius: 10px;
+  background: #CBD5E1;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(
-    180deg,
-    rgba(212, 175, 55, 0.5),
-    rgba(255, 228, 160, 0.5)
-  );
+  background: #94A3B8;
 }
 
-/* Custom scrollbar class for overflow regions */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(10, 15, 30, 0.3);
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(212, 175, 55, 0.3);
-  border-radius: 10px;
-}
-
-/* ─── Smooth scroll ───────────────────────────────────── */
+/* ─── Smooth scrolling ─────────────────────────────────── */
 html {
   scroll-behavior: smooth;
+}
+
+/* ─── UI Utility Classes ───────────────────────────────── */
+.medical-card {
+  background-color: var(--clinical-surface);
+  border: 1px solid var(--clinical-border);
+  border-radius: 6px;
+  box-shadow: var(--shadow-sm);
+}
+
+.medical-input {
+  background-color: #FFFFFF;
+  border: 1px solid var(--clinical-border);
+  color: var(--clinical-text-primary);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.medical-input:focus {
+  outline: none;
+  border-color: var(--clinical-blue);
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
 }

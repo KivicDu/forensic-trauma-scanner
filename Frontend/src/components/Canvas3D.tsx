@@ -29,11 +29,11 @@ export const Canvas3D: React.FC<Props> = ({
   sceneUnitScale = 1.0,
   activeTool: _activeTool = 'ruler',
   metrics = {
-    geodesicLength: 42.5,
-    maxWidth: 18.2,
-    maxDepth: 9.4,
-    meanDepth: 5.8,
-    cavityVolume: 1840,
+    geodesicLength: 41.2,
+    maxWidth: 6.7,
+    maxDepth: 14.8,
+    meanDepth: 7.2,
+    cavityVolume: 2100,
   },
   showSlicerPlane = true,
   showDepthColormap = true,
@@ -47,7 +47,7 @@ export const Canvas3D: React.FC<Props> = ({
   const modelGroupRef = useRef<THREE.Group | null>(null);
   const annotationGroupRef = useRef<THREE.Group | null>(null);
 
-  // Initialize Three.js Scene
+  // Initialize Three.js Scene with Clinical Light Medical Theme
   useEffect(() => {
     const container = mountRef.current;
     if (!container) return;
@@ -55,14 +55,14 @@ export const Canvas3D: React.FC<Props> = ({
     const width = container.clientWidth || 800;
     const height = container.clientHeight || 600;
 
-    // 1. Scene with neutral dark charcoal gray background (Medical Chromatic Neutrality: #18181B)
+    // 1. Scene with neutral soft clinical off-white background (#EEF2F6)
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#18181B");
+    scene.background = new THREE.Color("#EEF2F6");
     sceneRef.current = scene;
 
     // 2. Camera with precise millimeter near/far clipping
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.01, 500);
-    camera.position.set(0, 2.5, 4.0);
+    const camera = new THREE.PerspectiveCamera(42, width / height, 0.01, 500);
+    camera.position.set(0, 2.3, 3.8);
     cameraRef.current = camera;
 
     // 3. High-precision WebGL Renderer
@@ -70,7 +70,7 @@ export const Canvas3D: React.FC<Props> = ({
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.0;
+    renderer.toneMappingExposure = 1.05;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
@@ -84,23 +84,24 @@ export const Canvas3D: React.FC<Props> = ({
     controls.minDistance = 0.2;
     controlsRef.current = controls;
 
-    // 5. Lighting (Medical High-CRI Pure White Lighting, No Color Casts)
-    const ambient = new THREE.AmbientLight(0xffffff, 1.0);
+    // 5. Lighting (Medical High-CRI Pure White Lighting, Zero Color Cast)
+    const ambient = new THREE.AmbientLight(0xffffff, 1.15);
     scene.add(ambient);
 
     const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    mainLight.position.set(6, 12, 8);
+    mainLight.position.set(5, 12, 7);
     mainLight.castShadow = true;
     mainLight.shadow.mapSize.width = 2048;
     mainLight.shadow.mapSize.height = 2048;
+    mainLight.shadow.bias = -0.0001;
     scene.add(mainLight);
 
-    const fillLight = new THREE.DirectionalLight(0xf1f5f9, 0.6);
-    fillLight.position.set(-6, 6, -6);
+    const fillLight = new THREE.DirectionalLight(0xe2e8f0, 0.65);
+    fillLight.position.set(-6, 6, -5);
     scene.add(fillLight);
 
-    // 6. Metric Grid (Subtle millimeter coordinate system)
-    const gridHelper = new THREE.GridHelper(10, 50, 0x52525b, 0x27272a);
+    // 6. Metric Grid (Subtle medical millimeter coordinate lines)
+    const gridHelper = new THREE.GridHelper(10, 50, 0xcbd5e1, 0xe2e8f0);
     gridHelper.position.y = -0.001;
     scene.add(gridHelper);
 
@@ -219,20 +220,19 @@ export const Canvas3D: React.FC<Props> = ({
         const distSq = dx * dx + dz * dz;
 
         let y = 0.0;
-        let r = 0.85, g = 0.65, b = 0.55; // Natural human dermis baseline
+        // Natural human epidermis tone (#E4BAA0 normalized)
+        let r = 0.88, g = 0.72, b = 0.63;
 
         if (distSq < 1.0) {
-          // Cavity depth depression (depth = -0.12m equivalent to 12mm normalized)
-          const profile = Math.pow(Math.cos((distSq * Math.PI) / 2), 1.5);
-          y = -0.12 * profile;
+          // Cavity depth depression (depth = -0.15m equivalent to 14.8mm normalized)
+          const profile = Math.pow(Math.cos((distSq * Math.PI) / 2), 1.4);
+          y = -0.15 * profile;
 
-          // Depth colormap: Red/crimson wound bed fading to bruised margin
-          if (showDepthColormap) {
-            const depthRatio = Math.abs(y) / 0.12;
-            r = 0.55 + depthRatio * 0.4;
-            g = 0.15 - depthRatio * 0.1;
-            b = 0.15 - depthRatio * 0.1;
-          }
+          // Realistic forensic wound bed coloration: deep vascular crimson cavity
+          const depthRatio = Math.abs(y) / 0.15;
+          r = 0.75 - depthRatio * 0.25;
+          g = 0.35 - depthRatio * 0.25;
+          b = 0.30 - depthRatio * 0.20;
         }
 
         posAttr.setY(i, y);
@@ -246,8 +246,8 @@ export const Canvas3D: React.FC<Props> = ({
 
       const mat = new THREE.MeshStandardMaterial({
         vertexColors: true,
-        roughness: 0.55,
-        metalness: 0.05,
+        roughness: 0.52,
+        metalness: 0.02,
       });
 
       const skinMesh = new THREE.Mesh(geom, mat);
@@ -263,99 +263,102 @@ export const Canvas3D: React.FC<Props> = ({
     const group = annotationGroupRef.current;
     while (group.children.length > 0) group.remove(group.children[0]);
 
-    // 1. Geodesic Length Caliper (Along wound major axis)
-    const lenHalf = (metrics.geodesicLength / 100) / 2; // scaled visual unit
-    const p1 = new THREE.Vector3(-lenHalf, 0.005, 0);
-    const p2 = new THREE.Vector3(lenHalf, 0.005, 0);
+    // 1. Geodesic Length Caliper (Medical Steel Blue #0284C7)
+    const lenHalf = (metrics.geodesicLength / 100) / 2;
+    const p1 = new THREE.Vector3(-lenHalf, 0.006, 0);
+    const p2 = new THREE.Vector3(lenHalf, 0.006, 0);
 
     const lengthLineGeom = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(p1.x, 0.01, -0.28),
-      new THREE.Vector3(p1.x, 0.01, 0.05),
-      new THREE.Vector3(p1.x, 0.01, -0.28),
-      new THREE.Vector3(p2.x, 0.01, -0.28),
-      new THREE.Vector3(p2.x, 0.01, -0.28),
-      new THREE.Vector3(p2.x, 0.01, 0.05),
+      new THREE.Vector3(p1.x, 0.01, -0.26),
+      new THREE.Vector3(p1.x, 0.01, 0.04),
+      new THREE.Vector3(p1.x, 0.01, -0.26),
+      new THREE.Vector3(p2.x, 0.01, -0.26),
+      new THREE.Vector3(p2.x, 0.01, -0.26),
+      new THREE.Vector3(p2.x, 0.01, 0.04),
     ]);
     const lengthLine = new THREE.LineSegments(
       lengthLineGeom,
-      new THREE.LineBasicMaterial({ color: 0xfacc15, linewidth: 2 })
+      new THREE.LineBasicMaterial({ color: 0x0284c7, linewidth: 2 })
     );
     group.add(lengthLine);
 
-    // 2. Width Caliper (Minor axis)
+    // 2. Width Caliper (Clinical Slate #475569)
     const wHalf = (metrics.maxWidth / 100) / 2;
     const widthLineGeom = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-0.55, 0.01, -wHalf),
-      new THREE.Vector3(-0.45, 0.01, -wHalf),
-      new THREE.Vector3(-0.55, 0.01, -wHalf),
-      new THREE.Vector3(-0.55, 0.01, wHalf),
-      new THREE.Vector3(-0.55, 0.01, wHalf),
-      new THREE.Vector3(-0.45, 0.01, wHalf),
+      new THREE.Vector3(-0.52, 0.01, -wHalf),
+      new THREE.Vector3(-0.42, 0.01, -wHalf),
+      new THREE.Vector3(-0.52, 0.01, -wHalf),
+      new THREE.Vector3(-0.52, 0.01, wHalf),
+      new THREE.Vector3(-0.52, 0.01, wHalf),
+      new THREE.Vector3(-0.42, 0.01, wHalf),
     ]);
     const widthLine = new THREE.LineSegments(
       widthLineGeom,
-      new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 })
+      new THREE.LineBasicMaterial({ color: 0x475569, linewidth: 2 })
     );
     group.add(widthLine);
 
-    // 3. Depth Vertical Caliper Arrow
+    // 3. Depth Vertical Caliper (Medical Steel Blue #0369A1)
     const depthVal = -(metrics.maxDepth / 100);
     const depthLineGeom = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(0.55, 0.01, 0),
-      new THREE.Vector3(0.55, depthVal, 0),
-      new THREE.Vector3(0.48, 0.01, 0),
-      new THREE.Vector3(0.58, 0.01, 0),
-      new THREE.Vector3(0.48, depthVal, 0),
-      new THREE.Vector3(0.58, depthVal, 0),
+      new THREE.Vector3(0.52, 0.01, 0),
+      new THREE.Vector3(0.52, depthVal, 0),
+      new THREE.Vector3(0.46, 0.01, 0),
+      new THREE.Vector3(0.56, 0.01, 0),
+      new THREE.Vector3(0.46, depthVal, 0),
+      new THREE.Vector3(0.56, depthVal, 0),
     ]);
     const depthLine = new THREE.LineSegments(
       depthLineGeom,
-      new THREE.LineBasicMaterial({ color: 0xfacc15, linewidth: 2 })
+      new THREE.LineBasicMaterial({ color: 0x0369a1, linewidth: 2 })
     );
     group.add(depthLine);
 
     // 4. Landmark Pin Markers on Wound Ends
-    const pinGeom = new THREE.SphereGeometry(0.016, 16, 16);
-    const pinMatGold = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
-    const pinMatCyan = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+    const pinGeom = new THREE.SphereGeometry(0.014, 16, 16);
+    const pinMatBlue = new THREE.MeshBasicMaterial({ color: 0x0284c7 });
+    const pinMatSlate = new THREE.MeshBasicMaterial({ color: 0x475569 });
 
-    const pin1 = new THREE.Mesh(pinGeom, pinMatGold);
+    const pin1 = new THREE.Mesh(pinGeom, pinMatBlue);
     pin1.position.set(-lenHalf, 0.01, 0);
     group.add(pin1);
 
-    const pin2 = new THREE.Mesh(pinGeom, pinMatGold);
+    const pin2 = new THREE.Mesh(pinGeom, pinMatBlue);
     pin2.position.set(lenHalf, 0.01, 0);
     group.add(pin2);
 
-    const pin3 = new THREE.Mesh(pinGeom, pinMatCyan);
+    const pin3 = new THREE.Mesh(pinGeom, pinMatSlate);
     pin3.position.set(0, 0.01, -wHalf);
     group.add(pin3);
 
-    const pin4 = new THREE.Mesh(pinGeom, pinMatCyan);
+    const pin4 = new THREE.Mesh(pinGeom, pinMatSlate);
     pin4.position.set(0, 0.01, wHalf);
     group.add(pin4);
 
     // 5. Translucent 2D Cross-Section Slicing Plane
     if (showSlicerPlane) {
-      const planeGeom = new THREE.PlaneGeometry(0.9, 0.35);
+      const planeGeom = new THREE.PlaneGeometry(0.85, 0.35);
       planeGeom.rotateY(Math.PI / 2);
       const planeMat = new THREE.MeshBasicMaterial({
         color: 0x94a3b8,
         transparent: true,
-        opacity: 0.25,
+        opacity: 0.20,
         side: THREE.DoubleSide,
       });
       const slicePlane = new THREE.Mesh(planeGeom, planeMat);
       slicePlane.position.set(0, -0.05, 0);
       group.add(slicePlane);
 
-      // Yellow slice curve indicator line
+      // Medical blue slice curve indicator line
       const sliceCurveGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(0, 0.005, -wHalf),
         new THREE.Vector3(0, depthVal, 0),
         new THREE.Vector3(0, 0.005, wHalf),
       ]);
-      const sliceCurve = new THREE.Line(sliceCurveGeom, new THREE.LineBasicMaterial({ color: 0xfacc15, linewidth: 3 }));
+      const sliceCurve = new THREE.Line(
+        sliceCurveGeom,
+        new THREE.LineBasicMaterial({ color: 0x0284c7, linewidth: 2.5 })
+      );
       group.add(sliceCurve);
     }
   }, [metrics, showSlicerPlane]);
@@ -365,46 +368,56 @@ export const Canvas3D: React.FC<Props> = ({
       {/* 3D WebGL Canvas Container */}
       <div ref={mountRef} className="w-full h-full" />
 
-      {/* Floating Measurement Tags on Viewport */}
-      <div className="absolute top-16 left-1/2 -translate-x-1/2 pointer-events-none flex items-center gap-6 z-10">
-        <div className="bg-black/80 backdrop-blur-md border border-yellow-400/80 px-3 py-1 rounded text-yellow-300 text-xs font-mono font-bold shadow-lg">
-          Geodesic Length: {metrics.geodesicLength.toFixed(1)} mm
+      {/* Floating Measurement Tags on Viewport (Clean Medical Style) */}
+      <div className="absolute top-4 left-4 pointer-events-none flex flex-col gap-1.5 z-10">
+        <div className="bg-white/95 backdrop-blur-sm border border-slate-300 shadow-sm px-3 py-1.5 rounded text-xs font-mono text-slate-800">
+          <div className="flex items-center gap-2">
+            <span className="text-sky-700 font-bold">L:</span>
+            <span>{metrics.geodesicLength.toFixed(1)} mm</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-slate-600 font-bold">W:</span>
+            <span>{metrics.maxWidth.toFixed(1)} mm</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sky-700 font-bold">Depth:</span>
+            <span>{metrics.maxDepth.toFixed(1)} mm</span>
+          </div>
         </div>
       </div>
 
-      <div className="absolute bottom-24 left-16 pointer-events-none z-10">
-        <div className="bg-black/80 backdrop-blur-md border border-white/70 px-3 py-1 rounded text-white text-xs font-mono font-bold shadow-lg">
-          Width: {metrics.maxWidth.toFixed(1)} mm
+      {/* Metric Calibration Scale Bar (Bottom-Right) */}
+      <div className="absolute bottom-5 right-5 pointer-events-none flex flex-col items-center gap-1 z-10 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded border border-slate-200 shadow-sm">
+        <div className="flex h-2 w-28 border border-slate-700">
+          <div className="w-1/2 bg-slate-900" />
+          <div className="w-1/2 bg-white" />
         </div>
+        <span className="text-[10px] font-mono text-slate-700 font-semibold tracking-wider">
+          Metric 10 mm
+        </span>
       </div>
 
-      <div className="absolute bottom-24 right-24 pointer-events-none z-10">
-        <div className="bg-black/80 backdrop-blur-md border border-yellow-400/80 px-3 py-1 rounded text-yellow-300 text-xs font-mono font-bold shadow-lg">
-          Max Depth: {metrics.maxDepth.toFixed(1)} mm
-        </div>
-      </div>
-
-      {/* Right Medical Vertical Colorbar Scale */}
-      <div className="absolute top-16 right-4 pointer-events-none flex flex-col items-center gap-1 z-10 bg-black/60 backdrop-blur-md p-2 rounded border border-zinc-700">
-        <span className="text-[10px] text-zinc-300 font-mono">0 mm</span>
-        <div
-          className="w-3 h-32 rounded-sm"
-          style={{
-            background: "linear-gradient(to bottom, #22c55e 0%, #eab308 30%, #ef4444 70%, #7e22ce 100%)",
-          }}
-        />
-        <span className="text-[10px] text-zinc-300 font-mono">-5 mm</span>
-        <span className="text-[10px] text-zinc-400 font-mono text-center">-10 mm</span>
-        <span className="text-[10px] text-zinc-400 font-mono">-15 mm</span>
-      </div>
-
-      {/* Top-Right 3D ViewCube Gizmo */}
-      <div className="absolute top-3 right-24 pointer-events-none flex items-center justify-center w-12 h-12 rounded border border-zinc-700 bg-zinc-900/90 text-[11px] font-bold text-zinc-300 shadow-md">
+      {/* Top-Right 3D ViewCube Gizmo (Clean Clinical Style) */}
+      <div className="absolute top-4 right-4 pointer-events-none flex items-center justify-center w-12 h-12 rounded border border-slate-300 bg-white/95 text-[11px] font-bold text-slate-700 shadow-sm">
         <div className="text-center leading-tight">
           TOP<br />
-          <span className="text-[9px] text-cyan-400 font-mono">Z-UP</span>
+          <span className="text-[9px] text-sky-600 font-mono">Z-UP</span>
         </div>
       </div>
+
+      {/* Optional Right Medical Vertical Colorbar Scale */}
+      {showDepthColormap && (
+        <div className="absolute top-20 right-4 pointer-events-none flex flex-col items-center gap-1 z-10 bg-white/95 backdrop-blur-sm p-2 rounded border border-slate-200 shadow-sm">
+          <span className="text-[9px] text-slate-600 font-mono">0 mm</span>
+          <div
+            className="w-2.5 h-24 rounded-sm border border-slate-200"
+            style={{
+              background: "linear-gradient(to bottom, #e4baa0 0%, #b91c1c 100%)",
+            }}
+          />
+          <span className="text-[9px] text-slate-600 font-mono">-{metrics.maxDepth.toFixed(0)} mm</span>
+        </div>
+      )}
     </div>
   );
 };
