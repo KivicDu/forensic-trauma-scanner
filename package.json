@@ -1,0 +1,59 @@
+{
+  "name": "forensic-trauma-scanner",
+  "version": "1.0.0",
+  "description": "Forensic Trauma & Scene Reconstruction Desktop Suite",
+  "main": "electron/main.js",
+  "type": "module",
+  "scripts": {
+    "install-all": "npm install && npm --prefix Backend install && npm --prefix Frontend install",
+    "dev": "concurrently \"npm --prefix Backend run dev\" \"npm --prefix Frontend run dev\"",
+    "dev:backend": "npm --prefix Backend run dev",
+    "dev:frontend": "npm --prefix Frontend run dev",
+    "electron:dev": "concurrently \"npm --prefix Backend run dev\" \"npm --prefix Frontend run dev\" \"npx wait-on http://localhost:5173 && npx electron .\"",
+    "electron:build": "npm run build:frontend && npx electron-builder --win",
+    "build": "npm --prefix Frontend run build && npm --prefix Backend run build",
+    "build:frontend": "npm --prefix Frontend run build",
+    "start": "npm --prefix Backend run start",
+    "preview": "npm --prefix Frontend run preview",
+    "lint": "npm --prefix Frontend run lint",
+    "test": "npm --prefix Frontend run build"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.5.0",
+    "concurrently": "^8.2.2",
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.0",
+    "postcss": "^8.5.12",
+    "tailwindcss": "^4.2.4",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "org.forensic.trauma-scanner",
+    "productName": "Forensic Trauma & Scene Scanner",
+    "directories": {
+      "output": "dist_electron"
+    },
+    "files": [
+      "electron/**/*",
+      "Backend/**/*",
+      "Frontend/dist/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "keywords": [],
+  "author": "Forensic Traumatology Team",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.13.6"
+  }
+}
+

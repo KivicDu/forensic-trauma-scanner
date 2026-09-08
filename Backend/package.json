@@ -1,0 +1,38 @@
+{
+  "name": "forensic-trauma-scanner-backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon --watch server.js --watch controllers --watch routes --watch services --ignore uploads/ --ignore parsed/ --ignore simulations/",
+    "build": "echo \"Backend ready\""
+  },
+  "keywords": [
+    "forensics",
+    "trauma",
+    "biomechanics",
+    "3d-reconstruction"
+  ],
+  "author": "Forensic Traumatology Team",
+  "license": "ISC",
+  "description": "Offline Local Processing Engine for Forensic Trauma & Scene Reconstruction",
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.19.3",
+    "@gltf-transform/core": "^4.3.0",
+    "@gltf-transform/functions": "^4.3.0",
+    "bcryptjs": "^3.0.3",
+    "compression": "^1.8.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "express-rate-limit": "^6.7.0",
+    "helmet": "^6.0.1",
+    "morgan": "^1.10.0",
+    "multer": "^2.0.2"
+  },
+  "devDependencies": {
+    "@ljharb/tsconfig": "^0.3.2",
+    "nodemon": "^3.1.11"
+  }
+}
