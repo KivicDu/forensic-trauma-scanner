@@ -5,41 +5,12 @@ import { Suspense, lazy } from "react";
 const Simulator = lazy(() => import("./pages/Simulator"));
 
 const LoadingPage = () => (
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      height: "100vh",
-      background: "#0A0F1D",
-      fontFamily: "system-ui, -apple-system, sans-serif",
-      flexDirection: "column",
-      gap: 24,
-    }}
-  >
-    <div style={{ textAlign: "center" }}>
-      <div
-        style={{
-          width: 48,
-          height: 48,
-          border: "3px solid rgba(59, 130, 246, 0.2)",
-          borderTopColor: "#3b82f6",
-          borderRadius: "50%",
-          animation: "spin 1s linear infinite",
-          margin: "0 auto 20px",
-          boxShadow: "0 0 20px rgba(59, 130, 246, 0.3)",
-        }}
-      />
-      <p
-        style={{
-          color: "#94a3b8",
-          fontWeight: 600,
-          fontSize: 15,
-          letterSpacing: "0.05em",
-        }}
-      >
-        Khởi tạo Hệ thống Giám định Pháp y (Forensic Trauma Workstation)...
-      </p>
+  <div className="flex flex-col items-center justify-center h-screen w-screen bg-[#F8FAFC] font-sans">
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-8 h-8 border-2 border-slate-200 border-t-sky-600 rounded-full animate-spin" />
+      <span className="text-xs font-medium text-slate-500 tracking-wider">
+        Loading...
+      </span>
     </div>
   </div>
 );
